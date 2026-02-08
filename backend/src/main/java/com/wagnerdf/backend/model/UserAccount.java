@@ -19,34 +19,35 @@ import lombok.Setter;
 
 
 @Entity
-@Table(name = "usuarios")
+@Table(name = "user_accounts")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Usuario {
+public class UserAccount {
 	
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	
-	@Column(nullable = false)
-	private String nome;
+	@Column(name = "full_name", nullable = false)
+    private String fullName;
 	
-	@Column(nullable = false)
-	private String email;
+	@Column(nullable = false, unique = true)
+    private String email;
 	
-	@Column(nullable = false)
-	private String senha;
+    @Column(name = "password_hash", nullable = false)
+    private String password;
 	
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
-	private Role role;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
+
+    @Column(nullable = false)
+    private Boolean active = true;
 	
-	@Column(nullable = false)
-	private Boolean ativo = true;
-	
-	@CreationTimestamp
-	private LocalDateTime dataCriacao;
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false, nullable = false)
+    private LocalDateTime createdAt;
 
 }
