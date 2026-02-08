@@ -1,6 +1,6 @@
 package com.wagnerdf.backend.model;
 
-public enum StatusConta {
+public enum AccountStatus {
 	ATIVA,
 	BLOQUEADA
 }
