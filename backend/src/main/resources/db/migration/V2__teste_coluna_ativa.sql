@@ -1,0 +1,2 @@
+ALTER TABLE user_accounts
+ADD COLUMN teste_ativo BOOLEAN DEFAULT TRUE;

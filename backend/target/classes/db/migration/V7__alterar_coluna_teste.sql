@@ -1,0 +1,2 @@
+ALTER TABLE user_accounts
+ALTER COLUMN teste_coluna SET DEFAULT FALSE;
