@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.wagnerdf.backend.enums.AccountStatus;
 
 import jakarta.persistence.*;
@@ -34,10 +35,11 @@ public class BankAccount {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AccountStatus status = AccountStatus.ATIVA;
+    private AccountStatus status = AccountStatus.ACTIVE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private UserAccount user;
 
     @CreationTimestamp
