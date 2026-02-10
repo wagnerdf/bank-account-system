@@ -1,4 +1,4 @@
-package com.wagnerdf.backend.model;
+package com.wagnerdf.backend.enums;
 
 public enum AccountStatus {
 	ATIVA,

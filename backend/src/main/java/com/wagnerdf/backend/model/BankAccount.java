@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.wagnerdf.backend.enums.AccountStatus;
+
 import jakarta.persistence.*;
 
 import lombok.AllArgsConstructor;
