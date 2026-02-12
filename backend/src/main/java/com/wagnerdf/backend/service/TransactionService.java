@@ -2,11 +2,14 @@ package com.wagnerdf.backend.service;
 
 import com.wagnerdf.backend.dto.TransactionResponseDTO;
 import com.wagnerdf.backend.enums.TransactionType;
+import com.wagnerdf.backend.exception.BusinessException;
 import com.wagnerdf.backend.model.BankAccount;
 import com.wagnerdf.backend.model.Transaction;
 import com.wagnerdf.backend.repository.BankAccountRepository;
 import com.wagnerdf.backend.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,11 +31,17 @@ public class TransactionService {
 
         // 1️⃣ Validações iniciais
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("O valor deve ser maior que zero.");
+            throw new BusinessException(
+            		"O valor deve ser maior que zero.",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
         BankAccount account = bankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Conta não encontrada"));
+                .orElseThrow(() -> new BusinessException(
+                		"Conta não encontrada",
+                        HttpStatus.NOT_FOUND
+                 ));
 
         // 2️⃣ Processamento por tipo
         if (type == TransactionType.CREDIT) {
@@ -88,7 +97,10 @@ public class TransactionService {
 	
 	     // 3️⃣ Valida saldo
 	     if (account.getBalance().compareTo(totalDebit) < 0) {
-	         throw new IllegalStateException("Saldo insuficiente");
+	         throw new BusinessException(
+	        		 "Saldo insuficiente",
+	        	     HttpStatus.CONFLICT
+	         );
 	     }
 	
 	     // 4️⃣ Atualiza saldo
