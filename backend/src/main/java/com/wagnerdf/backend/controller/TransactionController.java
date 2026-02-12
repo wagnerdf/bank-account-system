@@ -3,6 +3,8 @@ package com.wagnerdf.backend.controller;
 import com.wagnerdf.backend.dto.TransactionRequestDTO;
 import com.wagnerdf.backend.dto.TransactionResponseDTO;
 import com.wagnerdf.backend.service.TransactionService;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +18,7 @@ public class TransactionController {
 
     @PostMapping
     public ResponseEntity<TransactionResponseDTO> executeTransaction(
-            @RequestBody TransactionRequestDTO request
+    		@Valid @RequestBody TransactionRequestDTO request
     ) {
         TransactionResponseDTO response = transactionService.executeTransaction(
         	    request.accountId(),
@@ -26,4 +28,5 @@ public class TransactionController {
 
         return ResponseEntity.ok(response);
     }
+    
 }
