@@ -45,4 +45,7 @@ public class BankAccount {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt;
+    
+    @Version
+    private Long version;
 }

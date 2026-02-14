@@ -1,7 +1,6 @@
 package com.wagnerdf.backend.controller;
 
-import com.wagnerdf.backend.dto.TransactionRequestDTO;
-import com.wagnerdf.backend.dto.TransactionResponseDTO;
+import com.wagnerdf.backend.dto.*;
 import com.wagnerdf.backend.service.TransactionService;
 
 import jakarta.validation.Valid;
@@ -16,17 +15,40 @@ public class TransactionController {
 
     private final TransactionService transactionService;
 
+    // =========================================
+    // CREDIT / DEBIT
+    // =========================================
     @PostMapping
     public ResponseEntity<TransactionResponseDTO> executeTransaction(
-    		@Valid @RequestBody TransactionRequestDTO request
+            @Valid @RequestBody TransactionRequestDTO request
     ) {
-        TransactionResponseDTO response = transactionService.executeTransaction(
-        	    request.accountId(),
-        	    request.type(),
-        	    request.amount()
-        );
+
+        TransactionResponseDTO response =
+                transactionService.executeTransaction(
+                        request.accountId(),
+                        request.type(),
+                        request.amount()
+                );
 
         return ResponseEntity.ok(response);
     }
-    
+
+    // =========================================
+    // TRANSFER
+    // =========================================
+    @PostMapping("/transfer")
+    public ResponseEntity<TransferResponseDTO> transfer(
+            @Valid @RequestBody TransferRequestDTO request
+    ) {
+
+        TransferResponseDTO response =
+                transactionService.transfer(
+                        request.originAccountId(),
+                        request.destinationAccountId(),
+                        request.amount(),
+                        request.feeRule()
+                );
+
+        return ResponseEntity.ok(response);
+    }
 }

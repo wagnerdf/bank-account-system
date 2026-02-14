@@ -1,7 +1,9 @@
 package com.wagnerdf.backend.service;
 
 import com.wagnerdf.backend.dto.TransactionResponseDTO;
+import com.wagnerdf.backend.dto.TransferResponseDTO;
 import com.wagnerdf.backend.enums.TransactionType;
+import com.wagnerdf.backend.enums.TransferFeeRule;
 import com.wagnerdf.backend.exception.BusinessException;
 import com.wagnerdf.backend.model.BankAccount;
 import com.wagnerdf.backend.model.Transaction;
@@ -22,6 +24,9 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final BankAccountRepository bankAccountRepository;
 
+    // =====================================================
+    // TRANSAÇÃO SIMPLES (CREDIT / DEBIT)
+    // =====================================================
     @Transactional
     public TransactionResponseDTO executeTransaction(
             Long accountId,
@@ -29,21 +34,10 @@ public class TransactionService {
             BigDecimal amount
     ) {
 
-        // 1️⃣ Validações iniciais
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException(
-            		"O valor deve ser maior que zero.",
-                    HttpStatus.BAD_REQUEST
-            );
-        }
+        validateAmount(amount);
 
-        BankAccount account = bankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new BusinessException(
-                		"Conta não encontrada",
-                        HttpStatus.NOT_FOUND
-                 ));
+        BankAccount account = findAccount(accountId);
 
-        // 2️⃣ Processamento por tipo
         if (type == TransactionType.CREDIT) {
             return processCredit(account, amount);
         }
@@ -55,16 +49,83 @@ public class TransactionService {
         throw new IllegalStateException("Tipo de transação não suportado");
     }
 
-    // =========================
+    // =====================================================
+    // TRANSFERÊNCIA
+    // =====================================================
+    @Transactional
+    public TransferResponseDTO transfer(
+            Long originAccountId,
+            Long destinationAccountId,
+            BigDecimal amount,
+            TransferFeeRule feeRule
+    ) {
+
+        validateAmount(amount);
+
+        if (originAccountId.equals(destinationAccountId)) {
+            throw new BusinessException(
+                    "Não é possível transferir para a mesma conta",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        BankAccount origin = findAccount(originAccountId);
+        BankAccount destination = findAccount(destinationAccountId);
+
+        BigDecimal fee = feeRule.calculate(amount);
+        BigDecimal totalDebit = amount.add(fee);
+
+        if (origin.getBalance().compareTo(totalDebit) < 0) {
+            throw new BusinessException(
+                    "Saldo insuficiente",
+                    HttpStatus.CONFLICT
+            );
+        }
+
+        origin.setBalance(origin.getBalance().subtract(totalDebit));
+        destination.setBalance(destination.getBalance().add(amount));
+
+        bankAccountRepository.save(origin);
+        bankAccountRepository.save(destination);
+
+        // DEBIT
+        Transaction debitTransaction = Transaction.builder()
+                .account(origin)
+                .type(TransactionType.DEBIT)
+                .amount(amount)
+                .appliedTax(fee)
+                .build();
+
+        // CREDIT
+        Transaction creditTransaction = Transaction.builder()
+                .account(destination)
+                .type(TransactionType.CREDIT)
+                .amount(amount)
+                .appliedTax(BigDecimal.ZERO)
+                .build();
+
+        transactionRepository.save(debitTransaction);
+        transactionRepository.save(creditTransaction);
+
+        return new TransferResponseDTO(
+                origin.getId(),
+                origin.getBalance(),
+                destination.getId(),
+                destination.getBalance(),
+                amount,
+                fee
+        );
+    }
+
+
+    // =====================================================
     // CREDIT
-    // =========================
+    // =====================================================
     private TransactionResponseDTO processCredit(BankAccount account, BigDecimal amount) {
 
-        // Atualiza saldo
         account.setBalance(account.getBalance().add(amount));
         bankAccountRepository.save(account);
 
-        // Cria transação
         Transaction transaction = Transaction.builder()
                 .account(account)
                 .type(TransactionType.CREDIT)
@@ -72,69 +133,70 @@ public class TransactionService {
                 .appliedTax(BigDecimal.ZERO)
                 .build();
 
-        Transaction savedTransaction = transactionRepository.save(transaction);
+        return buildResponse(transactionRepository.save(transaction));
+    }
 
+    // =====================================================
+    // DEBIT
+    // =====================================================
+    private TransactionResponseDTO processDebit(BankAccount account, BigDecimal amount) {
+
+        BigDecimal appliedTax = calculateTax(amount);
+        BigDecimal totalDebit = amount.add(appliedTax);
+
+        if (account.getBalance().compareTo(totalDebit) < 0) {
+            throw new BusinessException(
+                    "Saldo insuficiente",
+                    HttpStatus.CONFLICT
+            );
+        }
+
+        account.setBalance(account.getBalance().subtract(totalDebit));
+        bankAccountRepository.save(account);
+
+        Transaction transaction = Transaction.builder()
+                .account(account)
+                .type(TransactionType.DEBIT)
+                .amount(amount)
+                .appliedTax(appliedTax)
+                .build();
+
+        return buildResponse(transactionRepository.save(transaction));
+    }
+
+    // =====================================================
+    // UTILITÁRIOS
+    // =====================================================
+
+    private BankAccount findAccount(Long id) {
+        return bankAccountRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(
+                        "Conta não encontrada",
+                        HttpStatus.NOT_FOUND
+                ));
+    }
+
+    private void validateAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(
+                    "O valor deve ser maior que zero.",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+    }
+
+    private TransactionResponseDTO buildResponse(Transaction transaction) {
         return new TransactionResponseDTO(
-                savedTransaction.getId(),
-                savedTransaction.getAccount().getId(),
-                savedTransaction.getType(),
-                savedTransaction.getAmount(),
-                savedTransaction.getAppliedTax(),
-                savedTransaction.getCreatedAt()
+                transaction.getId(),
+                transaction.getAccount().getId(),
+                transaction.getType(),
+                transaction.getAmount(),
+                transaction.getAppliedTax(),
+                transaction.getCreatedAt()
         );
     }
 
-	 // =========================
-	 // DEBIT
-	 // =========================
-	 private TransactionResponseDTO processDebit(BankAccount account, BigDecimal amount) {
-	
-	     // 1️⃣ Calcula imposto
-	     BigDecimal appliedTax = calculateTax(amount);
-	
-	     // 2️⃣ Total a debitar
-	     BigDecimal totalDebit = amount.add(appliedTax);
-	
-	     // 3️⃣ Valida saldo
-	     if (account.getBalance().compareTo(totalDebit) < 0) {
-	         throw new BusinessException(
-	        		 "Saldo insuficiente",
-	        	     HttpStatus.CONFLICT
-	         );
-	     }
-	
-	     // 4️⃣ Atualiza saldo
-	     account.setBalance(account.getBalance().subtract(totalDebit));
-	     bankAccountRepository.save(account);
-	
-	     // 5️⃣ Cria transação
-	     Transaction transaction = Transaction.builder()
-	             .account(account)
-	             .type(TransactionType.DEBIT)
-	             .amount(amount)
-	             .appliedTax(appliedTax)
-	             .build();
-	
-	     Transaction savedTransaction = transactionRepository.save(transaction);
-	
-	     // 6️⃣ Retorna DTO
-	     return new TransactionResponseDTO(
-	             savedTransaction.getId(),
-	             savedTransaction.getAccount().getId(),
-	             savedTransaction.getType(),
-	             savedTransaction.getAmount(),
-	             savedTransaction.getAppliedTax(),
-	             savedTransaction.getCreatedAt()
-	     );
-	 }
-	
-
-    // =========================
-    // TAX (regra isolada)
-    // =========================
     private BigDecimal calculateTax(BigDecimal amount) {
-        // Regra simples inicial (ex: 2%)
         return amount.multiply(new BigDecimal("0.02"));
     }
-    
 }
