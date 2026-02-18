@@ -25,7 +25,7 @@ public class TransactionService {
     private final BankAccountRepository bankAccountRepository;
 
     // =====================================================
-    // TRANSAÇÃO SIMPLES (CREDIT / DEBIT)
+    // 1️⃣ TRANSAÇÃO SIMPLES (CREDIT / DEBIT)
     // =====================================================
     @Transactional
     public TransactionResponseDTO executeTransaction(
@@ -34,10 +34,13 @@ public class TransactionService {
             BigDecimal amount
     ) {
 
+        // 1️⃣ Validar valor da transação
         validateAmount(amount);
 
+        // 2️⃣ Buscar conta no banco
         BankAccount account = findAccount(accountId);
 
+        // 3️⃣ Processar transação de acordo com tipo
         if (type == TransactionType.CREDIT) {
             return processCredit(account, amount);
         }
@@ -46,11 +49,12 @@ public class TransactionService {
             return processDebit(account, amount);
         }
 
+        // 4️⃣ Caso tipo não suportado
         throw new IllegalStateException("Tipo de transação não suportado");
     }
 
     // =====================================================
-    // TRANSFERÊNCIA
+    // 2️⃣ TRANSFERÊNCIA ENTRE CONTAS
     // =====================================================
     @Transactional
     public TransferResponseDTO transfer(
@@ -60,8 +64,10 @@ public class TransactionService {
             TransferFeeRule feeRule
     ) {
 
+        // 1️⃣ Validar valor
         validateAmount(amount);
 
+        // 2️⃣ Impedir transferência para a mesma conta
         if (originAccountId.equals(destinationAccountId)) {
             throw new BusinessException(
                     "Não é possível transferir para a mesma conta",
@@ -69,12 +75,15 @@ public class TransactionService {
             );
         }
 
+        // 3️⃣ Buscar contas de origem e destino
         BankAccount origin = findAccount(originAccountId);
         BankAccount destination = findAccount(destinationAccountId);
 
+        // 4️⃣ Calcular taxa e valor total debitado
         BigDecimal fee = feeRule.calculate(amount);
         BigDecimal totalDebit = amount.add(fee);
 
+        // 5️⃣ Validar saldo suficiente na conta de origem
         if (origin.getBalance().compareTo(totalDebit) < 0) {
             throw new BusinessException(
                     "Saldo insuficiente",
@@ -82,12 +91,14 @@ public class TransactionService {
             );
         }
 
+        // 6️⃣ Atualizar saldos das contas
         origin.setBalance(origin.getBalance().subtract(totalDebit));
         destination.setBalance(destination.getBalance().add(amount));
 
         bankAccountRepository.save(origin);
         bankAccountRepository.save(destination);
 
+        // 7️⃣ Criar transações
         // DEBIT
         Transaction debitTransaction = Transaction.builder()
                 .account(origin)
@@ -107,6 +118,7 @@ public class TransactionService {
         transactionRepository.save(debitTransaction);
         transactionRepository.save(creditTransaction);
 
+        // 8️⃣ Montar DTO de resposta
         return new TransferResponseDTO(
                 origin.getId(),
                 origin.getBalance(),
@@ -117,15 +129,16 @@ public class TransactionService {
         );
     }
 
-
     // =====================================================
-    // CREDIT
+    // 3️⃣ PROCESSAR CRÉDITO
     // =====================================================
     private TransactionResponseDTO processCredit(BankAccount account, BigDecimal amount) {
 
+        // 1️⃣ Atualizar saldo da conta
         account.setBalance(account.getBalance().add(amount));
         bankAccountRepository.save(account);
 
+        // 2️⃣ Criar transação
         Transaction transaction = Transaction.builder()
                 .account(account)
                 .type(TransactionType.CREDIT)
@@ -133,17 +146,20 @@ public class TransactionService {
                 .appliedTax(BigDecimal.ZERO)
                 .build();
 
+        // 3️⃣ Montar DTO de resposta
         return buildResponse(transactionRepository.save(transaction));
     }
 
     // =====================================================
-    // DEBIT
+    // 4️⃣ PROCESSAR DÉBITO
     // =====================================================
     private TransactionResponseDTO processDebit(BankAccount account, BigDecimal amount) {
 
+        // 1️⃣ Calcular taxa e total a debitar
         BigDecimal appliedTax = calculateTax(amount);
         BigDecimal totalDebit = amount.add(appliedTax);
 
+        // 2️⃣ Validar saldo suficiente
         if (account.getBalance().compareTo(totalDebit) < 0) {
             throw new BusinessException(
                     "Saldo insuficiente",
@@ -151,9 +167,11 @@ public class TransactionService {
             );
         }
 
+        // 3️⃣ Atualizar saldo da conta
         account.setBalance(account.getBalance().subtract(totalDebit));
         bankAccountRepository.save(account);
 
+        // 4️⃣ Criar transação
         Transaction transaction = Transaction.builder()
                 .account(account)
                 .type(TransactionType.DEBIT)
@@ -161,13 +179,15 @@ public class TransactionService {
                 .appliedTax(appliedTax)
                 .build();
 
+        // 5️⃣ Montar DTO de resposta
         return buildResponse(transactionRepository.save(transaction));
     }
 
     // =====================================================
-    // UTILITÁRIOS
+    // 5️⃣ MÉTODOS AUXILIARES
     // =====================================================
 
+    // Buscar conta
     private BankAccount findAccount(Long id) {
         return bankAccountRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(
@@ -176,6 +196,7 @@ public class TransactionService {
                 ));
     }
 
+    // Validar valor da transação
     private void validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(
@@ -185,6 +206,7 @@ public class TransactionService {
         }
     }
 
+    // Montar DTO de transação
     private TransactionResponseDTO buildResponse(Transaction transaction) {
         return new TransactionResponseDTO(
                 transaction.getId(),
@@ -196,6 +218,7 @@ public class TransactionService {
         );
     }
 
+    // Calcular taxa de débito
     private BigDecimal calculateTax(BigDecimal amount) {
         return amount.multiply(new BigDecimal("0.02"));
     }

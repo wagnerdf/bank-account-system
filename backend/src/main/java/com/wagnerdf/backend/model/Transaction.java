@@ -38,5 +38,8 @@ public class Transaction {
     @Builder.Default
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @Column(name = "description", length = 255)
+    private String description;
 }
 
