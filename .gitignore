@@ -6,7 +6,10 @@
 # =========================
 # Build output (Maven/Gradle)
 # =========================
-/target/
+# Ignorar target do backend
+/backend/target/
+# Ignorar build do frontend (caso use npm/webpack/etc)
+/frontend/build/
 /build/
 
 # =========================
