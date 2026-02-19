@@ -1,0 +1,6 @@
+CREATE TABLE rounds (
+    id BIGSERIAL PRIMARY KEY,
+    number INT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
