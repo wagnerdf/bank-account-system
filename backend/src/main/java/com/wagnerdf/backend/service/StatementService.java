@@ -41,11 +41,11 @@ public class StatementService {
 
         // 3️⃣ Buscar transações do período
         List<Transaction> transactions = transactionRepository
-                .findByAccountIdAndCreatedAtBetweenOrderByCreatedAtAsc(
-                        accountId,
-                        startDate.atStartOfDay(),
-                        endDate.atTime(23, 59, 59)
-                );
+        		.findByAccountAndCreatedAtBetween(
+        			    accountId,
+        			    startDate.atStartOfDay(),
+        			    endDate.atTime(23, 59, 59)
+        		);
 
         // 4️⃣ Inicializar variáveis de totais e saldo progressivo
         BigDecimal totalDebits = BigDecimal.ZERO;

@@ -1,16 +1,14 @@
 package com.wagnerdf.backend.controller;
 
-import com.wagnerdf.backend.dto.*;
-import com.wagnerdf.backend.service.StatementService;
+import com.wagnerdf.backend.dto.TransactionResponseDTO;
+import com.wagnerdf.backend.dto.TransferResponseDTO;
+import com.wagnerdf.backend.model.BankAccount;
 import com.wagnerdf.backend.service.TransactionService;
-
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/transactions")
@@ -18,63 +16,67 @@ import java.time.LocalDate;
 public class TransactionController {
 
     private final TransactionService transactionService;
-    private final StatementService statementService;
 
     // =========================================
-    // 1️⃣ CREDIT / DEBIT
+    // 1️⃣ CREDIT
     // =========================================
-    @PostMapping
-    public ResponseEntity<TransactionResponseDTO> executeTransaction(
-            @Valid @RequestBody TransactionRequestDTO request
+    @PostMapping("/credit")
+    public ResponseEntity<TransactionResponseDTO> credit(
+            @RequestParam Long toAccountId,
+            @RequestParam BigDecimal amount,
+            @RequestParam(required = false) String description
     ) {
+        // Buscar conta usando o método do service
+        BankAccount toAccount = transactionService.findAccountById(toAccountId);
 
-        // 1️⃣ Executa transação simples
         TransactionResponseDTO response =
-                transactionService.executeTransaction(
-                        request.accountId(),
-                        request.type(),
-                        request.amount()
-                );
+                transactionService.credit(toAccount, amount, description);
 
-        // 2️⃣ Retorna resposta
         return ResponseEntity.ok(response);
     }
 
     // =========================================
-    // 2️⃣ TRANSFERÊNCIA
+    // 2️⃣ DEBIT
+    // =========================================
+    @PostMapping("/debit")
+    public ResponseEntity<TransactionResponseDTO> debit(
+            @RequestParam Long fromAccountId,
+            @RequestParam BigDecimal amount,
+            @RequestParam(required = false) BigDecimal fee,
+            @RequestParam(required = false) String description
+    ) {
+        BankAccount fromAccount = transactionService.findAccountById(fromAccountId);
+
+        TransactionResponseDTO response =
+                transactionService.debit(fromAccount, amount, fee != null ? fee : BigDecimal.ZERO, description);
+
+        return ResponseEntity.ok(response);
+    }
+
+    // =========================================
+    // 3️⃣ TRANSFER
     // =========================================
     @PostMapping("/transfer")
     public ResponseEntity<TransferResponseDTO> transfer(
-            @Valid @RequestBody TransferRequestDTO request
+            @RequestParam Long fromAccountId,
+            @RequestParam Long toAccountId,
+            @RequestParam BigDecimal amount,
+            @RequestParam(required = false) BigDecimal fee,
+            @RequestParam(required = false) String description
     ) {
+        BankAccount fromAccount = transactionService.findAccountById(fromAccountId);
+        BankAccount toAccount = transactionService.findAccountById(toAccountId);
 
-        // 1️⃣ Executa transferência
         TransferResponseDTO response =
                 transactionService.transfer(
-                        request.originAccountId(),
-                        request.destinationAccountId(),
-                        request.amount(),
-                        request.feeRule()
+                        fromAccount,
+                        toAccount,
+                        amount,
+                        fee != null ? fee : BigDecimal.ZERO,
+                        description
                 );
 
-        // 2️⃣ Retorna resposta
         return ResponseEntity.ok(response);
     }
 
-    // =========================================
-    // 3️⃣ EXTRATO (STATEMENT)
-    // =========================================
-    @GetMapping("/statement/{accountId}")
-    public ResponseEntity<StatementResponseDTO> getStatement(
-            @PathVariable Long accountId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
-    ) {
-
-        // 1️⃣ Chama Service para gerar extrato
-        StatementResponseDTO statement = statementService.getStatement(accountId, startDate, endDate);
-
-        // 2️⃣ Retorna extrato JSON
-        return ResponseEntity.ok(statement);
-    }
 }
