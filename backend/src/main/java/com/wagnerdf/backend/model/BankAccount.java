@@ -2,6 +2,8 @@ package com.wagnerdf.backend.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -53,4 +55,10 @@ public class BankAccount {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AccountType accountType;
+    
+    @OneToMany(mappedBy = "fromAccount", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Transaction> sentTransactions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "toAccount", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Transaction> receivedTransactions = new ArrayList<>();
 }

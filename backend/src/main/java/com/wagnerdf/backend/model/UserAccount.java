@@ -8,21 +8,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import com.wagnerdf.backend.enums.Role;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
 @Table(name = "user_accounts")
@@ -30,6 +17,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class UserAccount {
 	
 	@Id
@@ -56,7 +44,7 @@ public class UserAccount {
     @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt;
     
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    // Relação bidirecional com BankAccount
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BankAccount> accounts = new ArrayList<>();
-
 }
