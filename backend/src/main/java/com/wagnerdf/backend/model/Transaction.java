@@ -1,5 +1,6 @@
 package com.wagnerdf.backend.model;
 
+import com.wagnerdf.backend.enums.TransactionStatus;
 import com.wagnerdf.backend.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -21,8 +22,12 @@ public class Transaction {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "account_id", nullable = false)
-    private BankAccount account;
+    @JoinColumn(name = "from_account_id")
+    private BankAccount fromAccount;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "to_account_id")
+    private BankAccount toAccount;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 10)
@@ -35,11 +40,18 @@ public class Transaction {
     @Column(name = "applied_tax", nullable = false, precision = 15, scale = 2)
     private BigDecimal appliedTax = BigDecimal.ZERO;
 
-    @Builder.Default
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
     
     @Column(name = "description", length = 255)
     private String description;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TransactionStatus status;
 }
 
