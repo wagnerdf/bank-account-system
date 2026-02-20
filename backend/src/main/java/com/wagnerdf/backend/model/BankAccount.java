@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.wagnerdf.backend.enums.AccountStatus;
+import com.wagnerdf.backend.enums.AccountType;
 
 import jakarta.persistence.*;
 
@@ -48,4 +49,8 @@ public class BankAccount {
     
     @Version
     private Long version;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AccountType accountType;
 }
