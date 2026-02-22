@@ -2,6 +2,7 @@ package com.wagnerdf.backend.service;
 
 import com.wagnerdf.backend.dto.TransactionResponseDTO;
 import com.wagnerdf.backend.dto.TransferResponseDTO;
+import com.wagnerdf.backend.enums.AccountType;
 import com.wagnerdf.backend.enums.TransactionStatus;
 import com.wagnerdf.backend.enums.TransactionType;
 import com.wagnerdf.backend.enums.TransferFeeRule;
@@ -102,13 +103,20 @@ public class TransactionService {
             BigDecimal fee,
             String description
     ) {
+
         // 1️⃣ Debita origem com taxa
         debit(fromAccount, amount, fee, description);
 
         // 2️⃣ Credita destino
         credit(toAccount, amount, description);
 
-        // 3️⃣ Retorna DTO
+        // 3️⃣ Credita taxa na conta da plataforma
+        if (fee != null && fee.compareTo(BigDecimal.ZERO) > 0) {
+            BankAccount platformAccount = getPlatformFeeAccount();
+            credit(platformAccount, fee, "Transfer fee");
+        }
+
+        // 4️⃣ Retorna DTO
         return new TransferResponseDTO(
                 fromAccount.getId(),
                 fromAccount.getBalance(),
@@ -152,5 +160,11 @@ public class TransactionService {
             return BigDecimal.ZERO;
         }
         return feeRule.calculate(amount);
+    }
+    
+    private BankAccount getPlatformFeeAccount() {
+        return bankAccountRepository
+                .findByAccountType(AccountType.PLATFORM_FEE)
+                .orElseThrow(() -> new RuntimeException("Platform fee account not found"));
     }
 }
