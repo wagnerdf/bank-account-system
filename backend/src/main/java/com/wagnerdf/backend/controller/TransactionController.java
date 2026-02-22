@@ -1,5 +1,6 @@
 package com.wagnerdf.backend.controller;
 
+import com.wagnerdf.backend.dto.CreditRequestDTO;
 import com.wagnerdf.backend.dto.TransactionResponseDTO;
 import com.wagnerdf.backend.dto.TransferResponseDTO;
 import com.wagnerdf.backend.model.BankAccount;
@@ -17,23 +18,26 @@ public class TransactionController {
 
     private final TransactionService transactionService;
 
-    // =========================================
-    // 1️⃣ CREDIT
-    // =========================================
-    @PostMapping("/credit")
-    public ResponseEntity<TransactionResponseDTO> credit(
-            @RequestParam Long toAccountId,
-            @RequestParam BigDecimal amount,
-            @RequestParam(required = false) String description
-    ) {
-        // Buscar conta usando o método do service
-        BankAccount toAccount = transactionService.findAccountById(toAccountId);
-
-        TransactionResponseDTO response =
-                transactionService.credit(toAccount, amount, description);
-
-        return ResponseEntity.ok(response);
-    }
+	 // =========================================
+	 // 1️⃣ CREDIT
+	 // =========================================
+	 @PostMapping("/credit")
+	 public ResponseEntity<TransactionResponseDTO> credit(
+	         @RequestBody CreditRequestDTO request
+	 ) {
+	
+	     BankAccount toAccount =
+	             transactionService.findAccountById(request.toAccountId());
+	
+	     TransactionResponseDTO response =
+	             transactionService.credit(
+	                     toAccount,
+	                     request.amount(),
+	                     request.description()
+	             );
+	
+	     return ResponseEntity.ok(response);
+	 }
 
     // =========================================
     // 2️⃣ DEBIT
