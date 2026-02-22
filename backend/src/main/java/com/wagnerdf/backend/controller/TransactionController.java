@@ -1,6 +1,7 @@
 package com.wagnerdf.backend.controller;
 
 import com.wagnerdf.backend.dto.CreditRequestDTO;
+import com.wagnerdf.backend.dto.DebitRequestDTO;
 import com.wagnerdf.backend.dto.TransactionResponseDTO;
 import com.wagnerdf.backend.dto.TransferResponseDTO;
 import com.wagnerdf.backend.model.BankAccount;
@@ -39,23 +40,25 @@ public class TransactionController {
 	     return ResponseEntity.ok(response);
 	 }
 
-    // =========================================
-    // 2️⃣ DEBIT
-    // =========================================
-    @PostMapping("/debit")
-    public ResponseEntity<TransactionResponseDTO> debit(
-            @RequestParam Long fromAccountId,
-            @RequestParam BigDecimal amount,
-            @RequestParam(required = false) BigDecimal fee,
-            @RequestParam(required = false) String description
-    ) {
-        BankAccount fromAccount = transactionService.findAccountById(fromAccountId);
+	// =========================================
+	// 2️⃣ DEBIT
+	// =========================================
+	 @PostMapping("/debit")
+	 public ResponseEntity<TransactionResponseDTO> debit(@RequestBody DebitRequestDTO request) {
+	     BankAccount fromAccount = transactionService.findAccountById(request.fromAccountId());
 
-        TransactionResponseDTO response =
-                transactionService.debit(fromAccount, amount, fee != null ? fee : BigDecimal.ZERO, description);
+	     BigDecimal fee = request.fee() != null ? request.fee() : BigDecimal.ZERO;
 
-        return ResponseEntity.ok(response);
-    }
+	     TransactionResponseDTO response =
+	             transactionService.debit(
+	                     fromAccount,
+	                     request.amount(),
+	                     fee,
+	                     request.description()
+	             );
+
+	     return ResponseEntity.ok(response);
+	 }
 
     // =========================================
     // 3️⃣ TRANSFER
