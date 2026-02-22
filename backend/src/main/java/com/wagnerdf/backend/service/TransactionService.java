@@ -4,6 +4,7 @@ import com.wagnerdf.backend.dto.TransactionResponseDTO;
 import com.wagnerdf.backend.dto.TransferResponseDTO;
 import com.wagnerdf.backend.enums.TransactionStatus;
 import com.wagnerdf.backend.enums.TransactionType;
+import com.wagnerdf.backend.enums.TransferFeeRule;
 import com.wagnerdf.backend.exception.BusinessException;
 import com.wagnerdf.backend.model.BankAccount;
 import com.wagnerdf.backend.model.Transaction;
@@ -144,5 +145,12 @@ public class TransactionService {
     public BankAccount findAccountById(Long accountId) {
         return bankAccountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Conta não encontrada: " + accountId));
+    }
+    
+    public BigDecimal calculateFee(BigDecimal amount, TransferFeeRule feeRule) {
+        if (feeRule == null) {
+            return BigDecimal.ZERO;
+        }
+        return feeRule.calculate(amount);
     }
 }
