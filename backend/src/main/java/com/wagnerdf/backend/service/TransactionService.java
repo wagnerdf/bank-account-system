@@ -113,7 +113,7 @@ public class TransactionService {
         // 3️⃣ Credita taxa na conta da plataforma
         if (fee != null && fee.compareTo(BigDecimal.ZERO) > 0) {
             BankAccount platformAccount = getPlatformFeeAccount();
-            credit(platformAccount, fee, "Transfer fee");
+            applyPlatformFee(platformAccount, fee);
         }
 
         // 4️⃣ Retorna DTO
@@ -166,5 +166,23 @@ public class TransactionService {
         return bankAccountRepository
                 .findByAccountType(AccountType.PLATFORM_FEE)
                 .orElseThrow(() -> new RuntimeException("Platform fee account not found"));
+    }
+    
+    @Transactional
+    private void applyPlatformFee(BankAccount platformAccount, BigDecimal fee) {
+
+        platformAccount.setBalance(platformAccount.getBalance().add(fee));
+        bankAccountRepository.save(platformAccount);
+
+        Transaction transaction = Transaction.builder()
+                .toAccount(platformAccount)
+                .type(TransactionType.PLATFORM_FEE)
+                .amount(fee)
+                .appliedTax(BigDecimal.ZERO)
+                .status(TransactionStatus.COMPLETED)
+                .description("Platform fee")
+                .build();
+
+        transactionRepository.save(transaction);
     }
 }

@@ -74,22 +74,24 @@ public class TransactionController {
         return ResponseEntity.ok(response);
     }
 
-    // =========================================
-    // 4️⃣ EXTRATO (STATEMENT)
-    // =========================================
-    @GetMapping("/statement/{accountId}")
-    public ResponseEntity<StatementResponseDTO> getStatement(
-            @PathVariable Long accountId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
-    ) {
-        // 1️⃣ Gerar extrato via service
-        StatementResponseDTO statement = statementService.getStatement(accountId, startDate, endDate);
-
-        // 2️⃣ Imprimir extrato colorido no console
-        StatementPrinter.printFancyStatement(statement);
-
-        // 3️⃣ Retornar JSON normalmente
-        return ResponseEntity.ok(statement);
-    }
+	 // =========================================
+	 // 4️⃣ EXTRATO (STATEMENT)
+	 // =========================================
+	 @GetMapping("/statement/{accountId}")
+	 public ResponseEntity<StatementResponseDTO> getStatement(
+	         @PathVariable Long accountId,
+	         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+	         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+	 ) {
+	
+	     // 1️⃣ Gerar extrato via service
+	     StatementResponseDTO statement =
+	             statementService.getStatement(accountId, startDate, endDate);
+	
+	     // 2️⃣ Imprimir no console de forma colorida e intuitiva
+	     StatementPrinter.printFancyStatement(statement);
+	
+	     // 3️⃣ Retornar JSON normalmente
+	     return ResponseEntity.ok(statement);
+	 }
 }
