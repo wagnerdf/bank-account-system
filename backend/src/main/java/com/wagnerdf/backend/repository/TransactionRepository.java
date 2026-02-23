@@ -58,4 +58,5 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("accountId") Long accountId,
             @Param("date") LocalDateTime date
     );
+    
 }

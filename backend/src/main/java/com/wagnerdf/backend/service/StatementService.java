@@ -2,7 +2,6 @@ package com.wagnerdf.backend.service;
 
 import com.wagnerdf.backend.dto.StatementResponseDTO;
 import com.wagnerdf.backend.dto.StatementTransactionDTO;
-import com.wagnerdf.backend.enums.TransactionType;
 import com.wagnerdf.backend.exception.BusinessException;
 import com.wagnerdf.backend.model.BankAccount;
 import com.wagnerdf.backend.model.Transaction;
@@ -27,61 +26,88 @@ public class StatementService {
     // =====================================================
     // 1️⃣ GERAR EXTRATO (STATEMENT)
     // =====================================================
-    public StatementResponseDTO getStatement(Long accountId, LocalDate startDate, LocalDate endDate) {
+    public StatementResponseDTO getStatement(Long accountId,
+                                             LocalDate startDate,
+                                             LocalDate endDate) {
 
         // 1️⃣ Buscar conta com usuário
         BankAccount account = bankAccountRepository.findByIdWithUser(accountId)
-                .orElseThrow(() -> new BusinessException("Conta não encontrada", HttpStatus.NOT_FOUND));
+                .orElseThrow(() ->
+                        new BusinessException("Conta não encontrada", HttpStatus.NOT_FOUND));
 
-        // 2️⃣ Saldo inicial antes do período
-        BigDecimal initialBalance = transactionRepository.calculateBalanceBeforeDate(
-                accountId,
-                startDate.atStartOfDay()
-        );
+        // 2️⃣ Saldo antes do período
+        BigDecimal initialBalance = transactionRepository
+                .calculateBalanceBeforeDate(accountId, startDate.atStartOfDay());
 
-        // 3️⃣ Buscar transações do período
-        List<Transaction> transactions = transactionRepository
-        		.findByAccountAndCreatedAtBetween(
-        			    accountId,
-        			    startDate.atStartOfDay(),
-        			    endDate.atTime(23, 59, 59)
-        		);
+        if (initialBalance == null) {
+            initialBalance = BigDecimal.ZERO;
+        }
 
-        // 4️⃣ Inicializar variáveis de totais e saldo progressivo
+        // 3️⃣ Buscar transações ordenadas
+        List<Transaction> transactions =
+                transactionRepository.findByAccountAndCreatedAtBetween(
+                        accountId,
+                        startDate.atStartOfDay(),
+                        endDate.atTime(23, 59, 59)
+                );
+
         BigDecimal totalDebits = BigDecimal.ZERO;
         BigDecimal totalCredits = BigDecimal.ZERO;
         BigDecimal runningBalance = initialBalance;
 
         List<StatementTransactionDTO> transactionDTOs = new ArrayList<>();
 
-        // 5️⃣ Loop pelas transações para criar DTOs com saldo após
+        // 4️⃣ Processar transações
         for (Transaction t : transactions) {
-            if (t.getType() == TransactionType.CREDIT) {
-                totalCredits = totalCredits.add(t.getAmount());
-                runningBalance = runningBalance.add(t.getAmount());
-            } else { // DEBIT
-                BigDecimal debitWithTax = t.getAmount().add(
-                        t.getAppliedTax() != null ? t.getAppliedTax() : BigDecimal.ZERO
-                );
-                totalDebits = totalDebits.add(debitWithTax);
-                runningBalance = runningBalance.subtract(debitWithTax);
+
+            BigDecimal amount = t.getAmount() != null
+                    ? t.getAmount()
+                    : BigDecimal.ZERO;
+
+            BigDecimal tax = t.getAppliedTax() != null
+                    ? t.getAppliedTax()
+                    : BigDecimal.ZERO;
+
+            switch (t.getType()) {
+
+                // ================= CREDITOS =================
+                case CREDIT:
+                case PRIZE:
+                    totalCredits = totalCredits.add(amount);
+                    runningBalance = runningBalance.add(amount);
+                    break;
+
+                // ================= DEBITOS =================
+                case DEBIT:
+                case BET:
+                case PLATFORM_FEE:
+                    BigDecimal debitWithTax = amount.add(tax);
+                    totalDebits = totalDebits.add(debitWithTax);
+                    runningBalance = runningBalance.subtract(debitWithTax);
+                    break;
+
+                default:
+                    throw new BusinessException(
+                            "Tipo de transação não suportado: " + t.getType(),
+                            HttpStatus.BAD_REQUEST
+                    );
             }
 
-            // 5️⃣1️⃣ Montar DTO de transação
+            // Montar DTO
             StatementTransactionDTO dto = StatementTransactionDTO.builder()
                     .id(t.getId())
                     .createdAt(t.getCreatedAt())
                     .description(t.getDescription() != null ? t.getDescription() : "")
                     .type(t.getType())
-                    .amount(t.getAmount())
-                    .appliedTax(t.getAppliedTax())
+                    .amount(amount)
+                    .appliedTax(tax)
                     .balanceAfter(runningBalance)
                     .build();
 
             transactionDTOs.add(dto);
         }
 
-        // 6️⃣ Montar DTO final do extrato
+        // 5️⃣ Retornar DTO final
         return StatementResponseDTO.builder()
                 .accountId(account.getId())
                 .accountNumber(account.getAccountNumber())
