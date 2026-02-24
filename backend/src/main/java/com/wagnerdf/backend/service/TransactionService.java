@@ -1,5 +1,7 @@
 package com.wagnerdf.backend.service;
 
+import com.wagnerdf.backend.dto.CreditRequestDTO;
+import com.wagnerdf.backend.dto.DebitRequestDTO;
 import com.wagnerdf.backend.dto.TransactionResponseDTO;
 import com.wagnerdf.backend.dto.TransferResponseDTO;
 import com.wagnerdf.backend.enums.AccountType;
@@ -26,7 +28,7 @@ public class TransactionService {
     private final BankAccountRepository bankAccountRepository;
 
     // =====================================================
-    // 1️⃣ CRÉDITO
+    // 1️⃣ CRÉDITO (via BankAccount)
     // =====================================================
     @Transactional
     public TransactionResponseDTO credit(
@@ -34,14 +36,13 @@ public class TransactionService {
             BigDecimal amount,
             String description
     ) {
-        // 1️⃣ Validar valor
         validateAmount(amount);
 
-        // 2️⃣ Atualizar saldo
+        // Atualiza saldo
         toAccount.setBalance(toAccount.getBalance().add(amount));
         bankAccountRepository.save(toAccount);
 
-        // 3️⃣ Criar transação
+        // Cria transação
         Transaction transaction = Transaction.builder()
                 .toAccount(toAccount)
                 .type(TransactionType.CREDIT)
@@ -57,7 +58,16 @@ public class TransactionService {
     }
 
     // =====================================================
-    // 2️⃣ DÉBITO
+    // 1️⃣a CRÉDITO via DTO
+    // =====================================================
+    @Transactional
+    public TransactionResponseDTO credit(CreditRequestDTO request) {
+        BankAccount toAccount = findAccountById(request.toAccountId());
+        return credit(toAccount, request.amount(), request.description());
+    }
+
+    // =====================================================
+    // 2️⃣ DÉBITO (via BankAccount)
     // =====================================================
     @Transactional
     public TransactionResponseDTO debit(
@@ -93,6 +103,16 @@ public class TransactionService {
     }
 
     // =====================================================
+    // 2️⃣a DÉBITO via DTO
+    // =====================================================
+    @Transactional
+    public TransactionResponseDTO debit(DebitRequestDTO request) {
+        BankAccount fromAccount = findAccountById(request.fromAccountId());
+        BigDecimal fee = request.fee() != null ? request.fee() : BigDecimal.ZERO;
+        return debit(fromAccount, request.amount(), fee, request.description());
+    }
+
+    // =====================================================
     // 3️⃣ TRANSFERÊNCIA
     // =====================================================
     @Transactional
@@ -104,13 +124,62 @@ public class TransactionService {
             String description
     ) {
 
-        // 1️⃣ Debita origem com taxa
-        debit(fromAccount, amount, fee, description);
+        validateAmount(amount);
+
+        BigDecimal totalDebit = amount.add(fee);
+        if (fromAccount.getBalance().compareTo(totalDebit) < 0) {
+            throw new BusinessException("Saldo insuficiente", HttpStatus.CONFLICT);
+        }
+
+        // 1️⃣ Debita origem (valor + taxa)
+        fromAccount.setBalance(fromAccount.getBalance().subtract(totalDebit));
+        bankAccountRepository.save(fromAccount);
+
+        Transaction debitTransaction = Transaction.builder()
+                .fromAccount(fromAccount)
+                .type(TransactionType.DEBIT)
+                .amount(amount)
+                .appliedTax(fee)
+                .status(TransactionStatus.COMPLETED)
+                .description(description)
+                .build();
+
+        transactionRepository.save(debitTransaction);
 
         // 2️⃣ Credita destino
-        credit(toAccount, amount, description);
+        toAccount.setBalance(toAccount.getBalance().add(amount));
+        bankAccountRepository.save(toAccount);
 
-        // 3️⃣ Credita taxa na conta da plataforma
+        Transaction creditTransaction = Transaction.builder()
+                .toAccount(toAccount)
+                .type(TransactionType.CREDIT)
+                .amount(amount)
+                .appliedTax(BigDecimal.ZERO)
+                .status(TransactionStatus.COMPLETED)
+                .description(description)
+                .build();
+
+        transactionRepository.save(creditTransaction);
+
+        // 3️⃣ Credita taxa para conta da plataforma
+        if (fee.compareTo(BigDecimal.ZERO) > 0) {
+            BankAccount platformAccount = getPlatformFeeAccount();
+
+            platformAccount.setBalance(platformAccount.getBalance().add(fee));
+            bankAccountRepository.save(platformAccount);
+
+            Transaction feeTransaction = Transaction.builder()
+                    .toAccount(platformAccount)
+                    .type(TransactionType.CREDIT)
+                    .amount(fee)
+                    .appliedTax(BigDecimal.ZERO)
+                    .status(TransactionStatus.COMPLETED)
+                    .description("Taxa da transferência")
+                    .build();
+
+            transactionRepository.save(feeTransaction);
+        }
+
         return new TransferResponseDTO(
                 fromAccount.getId(),
                 fromAccount.getBalance(),
@@ -143,19 +212,19 @@ public class TransactionService {
                 transaction.getCreatedAt()
         );
     }
-    
+
     public BankAccount findAccountById(Long accountId) {
         return bankAccountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Conta não encontrada: " + accountId));
     }
-    
+
     public BigDecimal calculateFee(BigDecimal amount, TransferFeeRule feeRule) {
         if (feeRule == null) {
             return BigDecimal.ZERO;
         }
         return feeRule.calculate(amount);
     }
-    
+
     private BankAccount getPlatformFeeAccount() {
         return bankAccountRepository
                 .findByAccountType(AccountType.PLATFORM_FEE)
