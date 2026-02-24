@@ -18,6 +18,6 @@ public record TransferRequestDTO(
         @Positive(message = "O valor deve ser maior que zero.")
         BigDecimal amount,
 
-        @NotNull(message = "É necessário informar a regra de taxa.")
+        // @NotNull(message = "É necessário informar a regra de taxa.")
         TransferFeeRule feeRule
 ) {}
