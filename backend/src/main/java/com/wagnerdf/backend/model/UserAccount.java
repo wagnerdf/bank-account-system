@@ -19,32 +19,53 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class UserAccount {
-	
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
-	
-	@Column(name = "full_name", nullable = false)
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "full_name", nullable = false)
     private String fullName;
-	
-	@Column(nullable = false, unique = true)
+
+    @Column(nullable = false, unique = true)
     private String email;
-	
+
     @Column(name = "password_hash", nullable = false)
     private String password;
-	
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
     @Column(nullable = false)
-    private Boolean active = true;
-	
+    private boolean active;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt;
-    
-    // Relação bidirecional com BankAccount
+
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<BankAccount> accounts = new ArrayList<>();
+    private List<BankAccount> accounts;
+
+    // ================================
+    // Construtor customizado para inicialização segura
+    // ================================
+    @Builder
+    public UserAccount(Long id, String fullName, String email, String password, Role role, boolean active, List<BankAccount> accounts) {
+        this.id = id;
+        this.fullName = fullName;
+        this.email = email;
+        this.password = password;
+        this.role = role;
+        this.active = active;
+        this.accounts = accounts != null ? accounts : new ArrayList<>();
+    }
+
+    // Opcional: método para garantir active padrão ao criar via JPA
+    @PrePersist
+    private void prePersist() {
+        if (accounts == null) {
+            accounts = new ArrayList<>();
+        }
+    }
 }

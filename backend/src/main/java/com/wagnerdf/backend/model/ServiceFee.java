@@ -34,5 +34,5 @@ public class ServiceFee {
     private ServiceType serviceType;
 
     @Column(nullable = false)
-    private Boolean ativo = true;
+    private boolean ativo = true;
 }
