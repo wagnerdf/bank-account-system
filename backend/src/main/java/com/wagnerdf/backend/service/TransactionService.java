@@ -49,7 +49,7 @@ public class TransactionService {
                 .amount(amount)
                 .appliedTax(BigDecimal.ZERO)
                 .status(TransactionStatus.COMPLETED)
-                .description(description)
+                .description(buildDescription(TransactionType.CREDIT, description))
                 .build();
 
         transactionRepository.save(transaction);
@@ -94,7 +94,7 @@ public class TransactionService {
                 .amount(amount)
                 .appliedTax(fee)
                 .status(TransactionStatus.COMPLETED)
-                .description(description)
+                .description(buildDescription(TransactionType.DEBIT, description))
                 .build();
 
         transactionRepository.save(transaction);
@@ -141,7 +141,7 @@ public class TransactionService {
                 .amount(amount)
                 .appliedTax(fee)
                 .status(TransactionStatus.COMPLETED)
-                .description(description)
+                .description(buildDescription(TransactionType.DEBIT, description))
                 .build();
 
         transactionRepository.save(debitTransaction);
@@ -156,7 +156,7 @@ public class TransactionService {
                 .amount(amount)
                 .appliedTax(BigDecimal.ZERO)
                 .status(TransactionStatus.COMPLETED)
-                .description(description)
+                .description(buildDescription(TransactionType.CREDIT, description))
                 .build();
 
         transactionRepository.save(creditTransaction);
@@ -174,7 +174,7 @@ public class TransactionService {
                     .amount(fee)
                     .appliedTax(BigDecimal.ZERO)
                     .status(TransactionStatus.COMPLETED)
-                    .description("Taxa da transferência")
+                    .description(buildDescription(TransactionType.FEE, "Taxa da transferência"))
                     .build();
 
             transactionRepository.save(feeTransaction);
@@ -229,5 +229,13 @@ public class TransactionService {
         return bankAccountRepository
                 .findByAccountType(AccountType.PLATFORM_FEE)
                 .orElseThrow(() -> new RuntimeException("Platform fee account not found"));
+    }
+    
+    private String buildDescription(TransactionType type, String userDescription) {
+        if (userDescription == null || userDescription.isBlank()) {
+            return type.name();
+        }
+
+        return type.name() + " - " + userDescription;
     }
 }
