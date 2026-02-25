@@ -5,6 +5,7 @@ import com.wagnerdf.backend.dto.DebitRequestDTO;
 import com.wagnerdf.backend.dto.TransactionResponseDTO;
 import com.wagnerdf.backend.dto.TransferResponseDTO;
 import com.wagnerdf.backend.enums.AccountType;
+import com.wagnerdf.backend.enums.TransactionCategory;
 import com.wagnerdf.backend.enums.TransactionStatus;
 import com.wagnerdf.backend.enums.TransactionType;
 import com.wagnerdf.backend.enums.TransferFeeRule;
@@ -46,10 +47,11 @@ public class TransactionService {
         Transaction transaction = Transaction.builder()
                 .toAccount(toAccount)
                 .type(TransactionType.CREDIT)
+                .category(TransactionCategory.DEPOSIT)
                 .amount(amount)
                 .appliedTax(BigDecimal.ZERO)
                 .status(TransactionStatus.COMPLETED)
-                .description(buildDescription(TransactionType.CREDIT, description))
+                .description(description)
                 .build();
 
         transactionRepository.save(transaction);
@@ -91,10 +93,11 @@ public class TransactionService {
         Transaction transaction = Transaction.builder()
                 .fromAccount(fromAccount)
                 .type(TransactionType.DEBIT)
+                .category(TransactionCategory.WITHDRAW)
                 .amount(amount)
                 .appliedTax(fee)
                 .status(TransactionStatus.COMPLETED)
-                .description(buildDescription(TransactionType.DEBIT, description))
+                .description(description)
                 .build();
 
         transactionRepository.save(transaction);
@@ -112,83 +115,101 @@ public class TransactionService {
         return debit(fromAccount, request.amount(), fee, request.description());
     }
 
-    // =====================================================
-    // 3️⃣ TRANSFERÊNCIA
-    // =====================================================
-    @Transactional
-    public TransferResponseDTO transfer(
-            BankAccount fromAccount,
-            BankAccount toAccount,
-            BigDecimal amount,
-            BigDecimal fee,
-            String description
-    ) {
+ // =====================================================
+ // 3️⃣ TRANSFERÊNCIA AJUSTADA COM ENUNS E COMENTÁRIOS
+ // =====================================================
+ @Transactional
+ public TransferResponseDTO transfer(
+         BankAccount fromAccount,
+         BankAccount toAccount,
+         BigDecimal amount,
+         BigDecimal fee,
+         String description
+ ) {
 
-        validateAmount(amount);
+     // 1️⃣ Valida valor da transferência
+     validateAmount(amount);
 
-        BigDecimal totalDebit = amount.add(fee);
-        if (fromAccount.getBalance().compareTo(totalDebit) < 0) {
-            throw new BusinessException("Saldo insuficiente", HttpStatus.CONFLICT);
-        }
+     // Calcula total que será debitado da conta de origem (valor + taxa)
+     BigDecimal totalDebit = amount.add(fee);
+     if (fromAccount.getBalance().compareTo(totalDebit) < 0) {
+         throw new BusinessException("Saldo insuficiente", HttpStatus.CONFLICT);
+     }
 
-        // 1️⃣ Debita origem (valor + taxa)
-        fromAccount.setBalance(fromAccount.getBalance().subtract(totalDebit));
-        bankAccountRepository.save(fromAccount);
+     // =====================================================
+     // 1️⃣ DEBIT na conta de origem
+     // =====================================================
+     fromAccount.setBalance(fromAccount.getBalance().subtract(totalDebit));
+     bankAccountRepository.save(fromAccount);
 
-        Transaction debitTransaction = Transaction.builder()
-                .fromAccount(fromAccount)
-                .type(TransactionType.DEBIT)
-                .amount(amount)
-                .appliedTax(fee)
-                .status(TransactionStatus.COMPLETED)
-                .description(buildDescription(TransactionType.DEBIT, description))
-                .build();
+     Transaction debitTransaction = Transaction.builder()
+             .fromAccount(fromAccount)
+             .type(TransactionType.DEBIT)                         // Tipo financeiro: DEBIT
+             .category(TransactionCategory.TRANSFER)             // Categoria: TRANSFER porque é uma transferência de usuário
+             .amount(amount)                                     // Valor principal da transferência
+             .appliedTax(fee)                                   // Taxa aplicada (se houver)
+             .status(TransactionStatus.COMPLETED)                // Status da transação
+             .description(buildDescription(TransactionType.DEBIT, description))
+             .build();
 
-        transactionRepository.save(debitTransaction);
+     transactionRepository.save(debitTransaction);
 
-        // 2️⃣ Credita destino
-        toAccount.setBalance(toAccount.getBalance().add(amount));
-        bankAccountRepository.save(toAccount);
+     // =====================================================
+     // 2️⃣ CREDIT na conta de destino
+     // =====================================================
+     toAccount.setBalance(toAccount.getBalance().add(amount));
+     bankAccountRepository.save(toAccount);
 
-        Transaction creditTransaction = Transaction.builder()
-                .toAccount(toAccount)
-                .type(TransactionType.CREDIT)
-                .amount(amount)
-                .appliedTax(BigDecimal.ZERO)
-                .status(TransactionStatus.COMPLETED)
-                .description(buildDescription(TransactionType.CREDIT, description))
-                .build();
+     Transaction creditTransaction = Transaction.builder()
+             .toAccount(toAccount)
+             .type(TransactionType.CREDIT)                       // Tipo financeiro: CREDIT
+             .category(TransactionCategory.TRANSFER)            // Categoria: TRANSFER pois está recebendo uma transferência
+             .amount(amount)                                     // Valor recebido
+             .appliedTax(BigDecimal.ZERO)                       // Sem taxa aplicada nesta movimentação
+             .status(TransactionStatus.COMPLETED)
+             .description(buildDescription(TransactionType.CREDIT, description))
+             .build();
 
-        transactionRepository.save(creditTransaction);
+     transactionRepository.save(creditTransaction);
 
-        // 3️⃣ Credita taxa para conta da plataforma
-        if (fee.compareTo(BigDecimal.ZERO) > 0) {
-            BankAccount platformAccount = getPlatformFeeAccount();
+     // =====================================================
+     // 3️⃣ CREDIT para a conta da plataforma (PLATFORM_FEE)
+     // =====================================================
+     // Aqui só ocorre se houver fee > 0
+     if (fee.compareTo(BigDecimal.ZERO) > 0) {
+         BankAccount platformAccount = getPlatformFeeAccount();
 
-            platformAccount.setBalance(platformAccount.getBalance().add(fee));
-            bankAccountRepository.save(platformAccount);
+         platformAccount.setBalance(platformAccount.getBalance().add(fee));
+         bankAccountRepository.save(platformAccount);
 
-            Transaction feeTransaction = Transaction.builder()
-                    .toAccount(platformAccount)
-                    .type(TransactionType.CREDIT)
-                    .amount(fee)
-                    .appliedTax(BigDecimal.ZERO)
-                    .status(TransactionStatus.COMPLETED)
-                    .description(buildDescription(TransactionType.FEE, "Taxa da transferência"))
-                    .build();
+         Transaction feeTransaction = Transaction.builder()
+                 .toAccount(platformAccount)
+                 .type(TransactionType.CREDIT)                     // Tipo financeiro: CREDIT, porque estamos creditando a plataforma
+                 .category(TransactionCategory.PLATFORM_FEE)       // Categoria: PLATFORM_FEE pois é a taxa do sistema
+                 .amount(fee)                                     // Valor da taxa
+                 .appliedTax(BigDecimal.ZERO)                     // Sem taxa extra
+                 .status(TransactionStatus.COMPLETED)
+                 .description(buildDescription(
+                         TransactionType.CREDIT,
+                         "Taxa da transferência"
+                 ))
+                 .build();
 
-            transactionRepository.save(feeTransaction);
-        }
+         transactionRepository.save(feeTransaction);
+     }
 
-        return new TransferResponseDTO(
-                fromAccount.getId(),
-                fromAccount.getBalance(),
-                toAccount.getId(),
-                toAccount.getBalance(),
-                amount,
-                fee
-        );
-    }
+     // =====================================================
+     // 4️⃣ Retorna DTO com informações consolidadas
+     // =====================================================
+     return new TransferResponseDTO(
+             fromAccount.getId(),
+             fromAccount.getBalance(),
+             toAccount.getId(),
+             toAccount.getBalance(),
+             amount,
+             fee
+     );
+ }
 
     // =====================================================
     // 4️⃣ MÉTODOS AUXILIARES
@@ -230,12 +251,11 @@ public class TransactionService {
                 .findByAccountType(AccountType.PLATFORM_FEE)
                 .orElseThrow(() -> new RuntimeException("Platform fee account not found"));
     }
-    
+
     private String buildDescription(TransactionType type, String userDescription) {
         if (userDescription == null || userDescription.isBlank()) {
             return type.name();
         }
-
         return type.name() + " - " + userDescription;
     }
 }
