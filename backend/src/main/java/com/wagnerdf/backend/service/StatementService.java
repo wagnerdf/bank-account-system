@@ -2,6 +2,7 @@ package com.wagnerdf.backend.service;
 
 import com.wagnerdf.backend.dto.StatementResponseDTO;
 import com.wagnerdf.backend.dto.StatementTransactionDTO;
+import com.wagnerdf.backend.enums.TransactionCategory;
 import com.wagnerdf.backend.exception.BusinessException;
 import com.wagnerdf.backend.model.BankAccount;
 import com.wagnerdf.backend.model.Transaction;
@@ -67,18 +68,20 @@ public class StatementService {
             BigDecimal tax = t.getAppliedTax() != null
                     ? t.getAppliedTax()
                     : BigDecimal.ZERO;
+            
+            TransactionCategory category = t.getCategory();
 
-            switch (t.getType()) {
+            switch (category) {
 
                 // ================= CREDITOS =================
-                case CREDIT:
+                case DEPOSIT:
                 case PRIZE:
                     totalCredits = totalCredits.add(amount);
                     runningBalance = runningBalance.add(amount);
                     break;
 
                 // ================= DEBITOS =================
-                case DEBIT:
+                case WITHDRAW:
                 case BET:
                 case PLATFORM_FEE:
                     BigDecimal debitWithTax = amount.add(tax);

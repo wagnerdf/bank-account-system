@@ -3,6 +3,7 @@ package com.wagnerdf.backend.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.wagnerdf.backend.enums.TransactionCategory;
 import com.wagnerdf.backend.enums.TransactionType;
 
 import lombok.AllArgsConstructor;
@@ -29,4 +30,6 @@ public class StatementTransactionDTO {
     private BigDecimal appliedTax;
 
     private BigDecimal balanceAfter;
+    
+    private TransactionCategory category;
 }

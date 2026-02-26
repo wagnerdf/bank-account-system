@@ -2,18 +2,19 @@ package com.wagnerdf.backend;
 
 import com.wagnerdf.backend.dto.StatementResponseDTO;
 import com.wagnerdf.backend.dto.StatementTransactionDTO;
+import com.wagnerdf.backend.enums.TransactionCategory;
 
 import java.time.format.DateTimeFormatter;
 
 public class StatementPrinter {
 
     private static final String RESET = "\u001B[0m";
-    private static final String RED = "\u001B[31m";         // DEBIT
-    private static final String GREEN = "\u001B[32m";       // CREDIT / PRIZE
-    private static final String CYAN = "\u001B[36m";        // Cabeçalho
+    private static final String RED = "\u001B[31m";         // DEBIT / WITHDRAW
+    private static final String GREEN = "\u001B[32m";       // CREDIT / PRIZE / DEPOSIT
+    private static final String CYAN = "\u001B[36m";        // Cabeçalho / TRANSFER
     private static final String YELLOW = "\u001B[33m";      // Totais
     private static final String MAGENTA = "\u001B[35m";     // BET
-    private static final String BLUE = "\u001B[34m";        // PLATFORM_FEE
+    private static final String BLUE = "\u001B[34m";        // PLATFORM_FEE / FEE
 
     private static final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -28,32 +29,38 @@ public class StatementPrinter {
         System.out.println("------------------------------------------------------");
 
         for (StatementTransactionDTO t : statement.getTransactions()) {
+            TransactionCategory category = t.getCategory();
             String typeLabel;
             String color;
 
-            switch (t.getType()) {
-                case CREDIT:
-                    typeLabel = "CREDIT";
+            switch (category) {
+                case DEPOSIT:
+                    typeLabel = "DEPOSIT";
                     color = GREEN;
                     break;
-                case PRIZE:
-                    typeLabel = "PRIZE";
-                    color = GREEN;
-                    break;
-                case DEBIT:
-                    typeLabel = "DEBIT";
+                case WITHDRAW:
+                    typeLabel = "WITHDRAW";
                     color = RED;
+                    break;
+                case TRANSFER:
+                    typeLabel = "TRANSFER";
+                    color = CYAN;
                     break;
                 case BET:
                     typeLabel = "BET";
                     color = MAGENTA;
                     break;
+                case PRIZE:
+                    typeLabel = "PRIZE";
+                    color = GREEN;
+                    break;
                 case PLATFORM_FEE:
+                case FEE:
                     typeLabel = "FEE";
                     color = BLUE;
                     break;
                 default:
-                    typeLabel = t.getType().name();
+                    typeLabel = category.name();
                     color = RESET;
             }
 
