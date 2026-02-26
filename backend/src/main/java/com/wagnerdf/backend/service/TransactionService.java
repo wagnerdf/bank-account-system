@@ -27,6 +27,8 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final BankAccountRepository bankAccountRepository;
+    
+    private static final String DEFAULT_TRANSFER_DESCRIPTION = "Transferência entre contas";
 
     // =====================================================
     // 1️⃣ CRÉDITO (via BankAccount)
@@ -127,6 +129,11 @@ public class TransactionService {
          String description
  ) {
 
+     String finalDescription =
+             (description == null || description.isBlank())
+             ? DEFAULT_TRANSFER_DESCRIPTION
+             : description;
+
      // 1️⃣ Valida valor da transferência
      validateAmount(amount);
 
@@ -144,12 +151,12 @@ public class TransactionService {
 
      Transaction debitTransaction = Transaction.builder()
              .fromAccount(fromAccount)
-             .type(TransactionType.DEBIT)                         // Tipo financeiro: DEBIT
-             .category(TransactionCategory.TRANSFER)             // Categoria: TRANSFER porque é uma transferência de usuário
-             .amount(amount)                                     // Valor principal da transferência
-             .appliedTax(fee)                                   // Taxa aplicada (se houver)
-             .status(TransactionStatus.COMPLETED)                // Status da transação
-             .description(buildDescription(TransactionType.DEBIT, description))
+             .type(TransactionType.DEBIT)
+             .category(TransactionCategory.TRANSFER)
+             .amount(amount)
+             .appliedTax(fee)
+             .status(TransactionStatus.COMPLETED)
+             .description(finalDescription)
              .build();
 
      transactionRepository.save(debitTransaction);
@@ -162,12 +169,12 @@ public class TransactionService {
 
      Transaction creditTransaction = Transaction.builder()
              .toAccount(toAccount)
-             .type(TransactionType.CREDIT)                       // Tipo financeiro: CREDIT
-             .category(TransactionCategory.TRANSFER)            // Categoria: TRANSFER pois está recebendo uma transferência
-             .amount(amount)                                     // Valor recebido
-             .appliedTax(BigDecimal.ZERO)                       // Sem taxa aplicada nesta movimentação
+             .type(TransactionType.CREDIT)
+             .category(TransactionCategory.TRANSFER)
+             .amount(amount)
+             .appliedTax(BigDecimal.ZERO)
              .status(TransactionStatus.COMPLETED)
-             .description(buildDescription(TransactionType.CREDIT, description))
+             .description(finalDescription)
              .build();
 
      transactionRepository.save(creditTransaction);
@@ -184,15 +191,12 @@ public class TransactionService {
 
          Transaction feeTransaction = Transaction.builder()
                  .toAccount(platformAccount)
-                 .type(TransactionType.CREDIT)                     // Tipo financeiro: CREDIT, porque estamos creditando a plataforma
-                 .category(TransactionCategory.PLATFORM_FEE)       // Categoria: PLATFORM_FEE pois é a taxa do sistema
-                 .amount(fee)                                     // Valor da taxa
-                 .appliedTax(BigDecimal.ZERO)                     // Sem taxa extra
+                 .type(TransactionType.CREDIT)
+                 .category(TransactionCategory.PLATFORM_FEE)
+                 .amount(fee)
+                 .appliedTax(BigDecimal.ZERO)
                  .status(TransactionStatus.COMPLETED)
-                 .description(buildDescription(
-                         TransactionType.CREDIT,
-                         "Taxa da transferência"
-                 ))
+                 .description(finalDescription)
                  .build();
 
          transactionRepository.save(feeTransaction);
@@ -252,10 +256,4 @@ public class TransactionService {
                 .orElseThrow(() -> new RuntimeException("Platform fee account not found"));
     }
 
-    private String buildDescription(TransactionType type, String userDescription) {
-        if (userDescription == null || userDescription.isBlank()) {
-            return type.name();
-        }
-        return type.name() + " - " + userDescription;
-    }
 }
