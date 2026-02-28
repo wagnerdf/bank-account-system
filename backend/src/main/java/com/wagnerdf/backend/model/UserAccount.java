@@ -6,8 +6,6 @@ import java.util.List;
 
 import org.hibernate.annotations.CreationTimestamp;
 
-import com.wagnerdf.backend.enums.Role;
-
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -33,9 +31,9 @@ public class UserAccount {
     @Column(name = "password_hash", nullable = false)
     private String password;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", nullable = false)
+    private UserRole role;
 
     @Column(nullable = false)
     private boolean active;
@@ -47,21 +45,6 @@ public class UserAccount {
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BankAccount> accounts;
 
-    // ================================
-    // Construtor customizado para inicialização segura
-    // ================================
-    @Builder
-    public UserAccount(Long id, String fullName, String email, String password, Role role, boolean active, List<BankAccount> accounts) {
-        this.id = id;
-        this.fullName = fullName;
-        this.email = email;
-        this.password = password;
-        this.role = role;
-        this.active = active;
-        this.accounts = accounts != null ? accounts : new ArrayList<>();
-    }
-
-    // Opcional: método para garantir active padrão ao criar via JPA
     @PrePersist
     private void prePersist() {
         if (accounts == null) {
