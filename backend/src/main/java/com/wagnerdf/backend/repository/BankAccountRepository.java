@@ -2,6 +2,7 @@ package com.wagnerdf.backend.repository;
 
 import com.wagnerdf.backend.enums.AccountType;
 import com.wagnerdf.backend.model.BankAccount;
+import com.wagnerdf.backend.model.UserAccount;
 
 import java.util.Optional;
 
@@ -15,6 +16,8 @@ public interface BankAccountRepository extends JpaRepository<BankAccount, Long> 
 	Optional<BankAccount> findByIdWithUser(@Param("id") Long id);
 	
 	Optional<BankAccount> findByAccountType(AccountType accountType);
+	
+	Optional<BankAccount> findByUser(UserAccount user);
 
 
 }
