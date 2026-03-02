@@ -215,45 +215,55 @@ public class TransactionService {
      );
  }
 
-    // =====================================================
-    // 4️⃣ MÉTODOS AUXILIARES
-    // =====================================================
-    private void validateAmount(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException(
-                    "O valor deve ser maior que zero.",
-                    HttpStatus.BAD_REQUEST
-            );
-        }
-    }
-
-    private TransactionResponseDTO buildResponse(Transaction transaction, Long accountId) {
-        return new TransactionResponseDTO(
-                transaction.getId(),
-                accountId,
-                transaction.getType(),
-                transaction.getAmount(),
-                transaction.getAppliedTax(),
-                transaction.getCreatedAt()
-        );
-    }
-
-    public BankAccount findAccountById(Long accountId) {
-        return bankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new RuntimeException("Conta não encontrada: " + accountId));
-    }
-
-    public BigDecimal calculateFee(BigDecimal amount, TransferFeeRule feeRule) {
-        if (feeRule == null) {
-            return BigDecimal.ZERO;
-        }
-        return feeRule.calculate(amount);
-    }
-
-    private BankAccount getPlatformFeeAccount() {
-        return bankAccountRepository
-                .findByAccountType(AccountType.PLATFORM_FEE)
-                .orElseThrow(() -> new RuntimeException("Platform fee account not found"));
-    }
+	 // =====================================================
+	 // 4️⃣ MÉTODOS AUXILIARES
+	 // =====================================================
+	 private void validateAmount(BigDecimal amount) {
+	     if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+	         throw new BusinessException(
+	                 "O valor deve ser maior que zero.",
+	                 HttpStatus.BAD_REQUEST
+	         );
+	     }
+	 }
+	
+	 private TransactionResponseDTO buildResponse(Transaction transaction, Long accountId) {
+	     return new TransactionResponseDTO(
+	             transaction.getId(),
+	             accountId,
+	             transaction.getType(),
+	             transaction.getAmount(),
+	             transaction.getAppliedTax(),
+	             transaction.getCreatedAt()
+	     );
+	 }
+	
+	 public BankAccount findAccountById(Long accountId) {
+	     return bankAccountRepository.findById(accountId)
+	             .orElseThrow(() ->
+	                     new BusinessException(
+	                             "Conta não encontrada: " + accountId,
+	                             HttpStatus.NOT_FOUND
+	                     )
+	             );
+	 }
+	
+	 public BigDecimal calculateFee(BigDecimal amount, TransferFeeRule feeRule) {
+	     if (feeRule == null) {
+	         return BigDecimal.ZERO;
+	     }
+	     return feeRule.calculate(amount);
+	 }
+	
+	 private BankAccount getPlatformFeeAccount() {
+	     return bankAccountRepository
+	             .findByAccountType(AccountType.PLATFORM_FEE)
+	             .orElseThrow(() ->
+	                     new BusinessException(
+	                             "Conta da plataforma não encontrada.",
+	                             HttpStatus.INTERNAL_SERVER_ERROR
+	                     )
+	             );
+	 }
 
 }
