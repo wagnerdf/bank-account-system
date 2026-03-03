@@ -8,15 +8,13 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.web.bind.annotation.*;
 
 import com.wagnerdf.backend.dto.LoginRequest;
 import com.wagnerdf.backend.dto.SignupRequest;
 import com.wagnerdf.backend.model.UserAccount;
-import com.wagnerdf.backend.model.UserRole;
-import com.wagnerdf.backend.repository.UserAccountRepository;
-import com.wagnerdf.backend.repository.UserRoleRepository;
+import com.wagnerdf.backend.service.UserService;
 import com.wagnerdf.backend.util.JwtUtil;
 
 @RestController
@@ -28,15 +26,9 @@ public class AuthController {
 
     @Autowired
     private JwtUtil jwtUtil;
-
+    
     @Autowired
-    private UserAccountRepository userAccountRepository;
-
-    @Autowired
-    private UserRoleRepository userRoleRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private UserService userService;
 
     // ================================
     // SIGNUP
@@ -44,24 +36,12 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody SignupRequest request) {
 
-        if (userAccountRepository.findByEmail(request.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Email já cadastrado.");
+        try {
+            userService.registerUser(request);
+            return ResponseEntity.ok("Usuário criado com sucesso!");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
-
-        UserRole role = userRoleRepository.findByName(request.getRole())
-                .orElseThrow(() -> new RuntimeException("Role não encontrada."));
-
-        UserAccount user = UserAccount.builder()
-                .fullName(request.getFullName())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(role)
-                .active(true)
-                .build();
-
-        userAccountRepository.save(user);
-
-        return ResponseEntity.ok("Usuário criado com sucesso!");
     }
 
     // ================================
