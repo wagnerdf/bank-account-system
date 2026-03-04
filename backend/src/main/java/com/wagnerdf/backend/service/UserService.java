@@ -10,7 +10,6 @@ import com.wagnerdf.backend.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,11 +35,13 @@ public class UserService {
         String email = request.getEmail().toLowerCase();
 
         if (userAccountRepository.findByEmail(email).isPresent()) {
-            throw new RuntimeException("Email já cadastrado.");
+            throw new BusinessException("Email já cadastrado.", HttpStatus.CONFLICT);
         }
 
         UserRole role = userRoleRepository.findByName(request.getRole())
-                .orElseThrow(() -> new RuntimeException("Role não encontrada."));
+        		.orElseThrow(() ->
+	        	    new BusinessException("Role não encontrada.", HttpStatus.NOT_FOUND)
+	        	);
 
         UserAccount user = UserAccount.builder()
                 .fullName(request.getFullName())

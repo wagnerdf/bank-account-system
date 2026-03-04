@@ -3,6 +3,7 @@ package com.wagnerdf.backend.controller;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.wagnerdf.backend.dto.LoginRequest;
 import com.wagnerdf.backend.dto.SignupRequest;
+import com.wagnerdf.backend.exception.BusinessException;
 import com.wagnerdf.backend.model.UserAccount;
 import com.wagnerdf.backend.service.UserService;
 import com.wagnerdf.backend.util.JwtUtil;
@@ -36,12 +38,10 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody SignupRequest request) {
 
-        try {
-            userService.registerUser(request);
-            return ResponseEntity.ok("Usuário criado com sucesso!");
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        userService.registerUser(request);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+        		.body(Map.of("message", "Usuário criado com sucesso."));
     }
 
     // ================================
@@ -66,7 +66,7 @@ public class AuthController {
             return ResponseEntity.ok(Map.of("token", token));
 
         } catch (AuthenticationException e) {
-            return ResponseEntity.badRequest().body("Credenciais inválidas.");
+        	 throw new BusinessException("Credenciais inválidas.", HttpStatus.UNAUTHORIZED);
         }
     }
 }
